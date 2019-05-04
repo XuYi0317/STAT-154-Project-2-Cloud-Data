@@ -1,0 +1,775 @@
+---
+title: "proj2_stat154"
+author: "jincen li"
+date: "4/25/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+image1 <- read.table("~/Desktop/Stat154/project2/image_data/image1.txt")
+
+image2 <- read.table("~/Desktop/Stat154/project2/image_data/image2.txt")
+
+image3 <- read.table("~/Desktop/Stat154/project2/image_data/image3.txt")
+
+
+variables <- c("Y","X","label","NDAI","SD","CORR","DF","CF","BF","AF","AN")
+names(image1) <- variables
+names(image2) <- variables
+names(image3) <- variables
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(MASS)
+library(caret)
+library(ggplot2)
+require(GGally)
+library(magrittr)
+library(ggpubr)
+library(e1071)
+library(class)
+library(ROCR)
+library(randomUniformForest)
+```
+1b
+```{r}
+sum(image1$label == 1)/nrow(image1)
+sum(image1$label == 0)/nrow(image1)
+sum(image1$label == -1)/nrow(image1)
+
+sum(image2$label == 1)/nrow(image2)
+sum(image2$label == 0)/nrow(image2)
+sum(image2$label == -1)/nrow(image2)
+
+sum(image3$label == 1)/nrow(image3)
+sum(image3$label == 0)/nrow(image3)
+sum(image3$label == -1)/nrow(image3)
+
+ggplot(image1) + geom_point(aes(x =  X, y = Y, color = label)) + ggtitle ("X-Y Maps for Image1") 
+ggplot(image2) + geom_point(aes(x =  X, y = Y, color = label)) + ggtitle ("X-Y Maps for Image2") 
+ggplot(image3) + geom_point(aes(x =  X, y = Y, color = label)) + ggtitle ("X-Y Maps for Image3") 
+```
+
+1c
+(i)
+```{r}
+ggpairs(data = image1, columns = 4:11, title = 'image1 pairwise relationship between features')
+ggpairs(data = image1, columns = 4:11, title = 'image2 pairwise relationship between features')
+ggpairs(data = image1, columns = 4:11, title = 'image3 pairwise relationship between features')
+```
+
+```{r}
+an_df1 <- ggplot(image1) + geom_point(aes(x =  AN, y = DF, color = label)) + ggtitle ("AN-DF scatter plot") 
+an_corr1 <- ggplot(image1) + geom_point(aes(x =  AN, y = CORR, color = label)) + ggtitle ("AN-CORR scatter plot") 
+cf_df1 <- ggplot(image1) + geom_point(aes(x =  CF, y = DF, color = label)) + ggtitle ("CF-DF scatter plot") 
+bf_df1 <- ggplot(image1) + geom_point(aes(x =  BF, y = DF, color = label)) + ggtitle ("BF-DF scatter plot") 
+bf_cf1 <- ggplot(image1) + geom_point(aes(x =  BF, y = CF, color = label)) + ggtitle ("BF-CF scatter plot") 
+af_bf1 <- ggplot(image1) + geom_point(aes(x =  AF, y = BF, color = label)) + ggtitle ("AF-BF scatter plot") 
+ggarrange(an_df1, an_corr1, cf_df1, bf_df1, bf_cf1, af_bf1, ncol = 3, nrow = 2)
+```
+
+(ii)
+```{r}
+
+non_zero_image1 <- image1[image1$label != 0,]
+
+corr1 <- ggplot(non_zero_image1) + geom_boxplot(aes(x =  label,  y = CORR, color = label, group = label)) + ggtitle ("CORR box plot for Image1") 
+ndai1 <- ggplot(non_zero_image1) + geom_boxplot(aes(x =  label,  y = NDAI, color = label, group = label)) + ggtitle ("NDAI box plot for Image1") 
+sd1 <- ggplot(non_zero_image1) + geom_boxplot(aes(x =  label,  y = SD, color = label, group = label)) + ggtitle ("SD box plot for Image1") 
+af1 <- ggplot(non_zero_image1) + geom_boxplot(aes(x =  label,  y = AF, color = label, group = label)) + ggtitle ("AF box plot for Image1") 
+ggarrange(corr1, ndai1, sd1, af1,  ncol = 2, nrow = 2)
+```
+
+```{r}
+
+non_zero_image2 <- image2[image2$label != 0,]
+corr2 <- ggplot(non_zero_image2) + geom_boxplot(aes(x =  label,  y = CORR, color = label, group = label)) + ggtitle ("CORR box plot for Image2") 
+ndai2 <- ggplot(non_zero_image2) + geom_boxplot(aes(x =  label,  y = NDAI, color = label, group = label)) + ggtitle ("NDAI box plot for Image2") 
+sd2 <- ggplot(non_zero_image2) + geom_boxplot(aes(x =  label,  y = SD, color = label, group = label)) + ggtitle ("SD box plot for Image2")
+af2 <- ggplot(non_zero_image2) + geom_boxplot(aes(x =  label,  y = AF, color = label, group = label)) + ggtitle ("AF box plot for Image2") 
+ggarrange(corr2, ndai2, sd2, af2, ncol = 2, nrow = 2)
+```
+
+
+```{r}
+
+non_zero_image3 <- image3[image3$label != 0,]
+corr3 <- ggplot(non_zero_image3) + geom_boxplot(aes(x =  label,  y = CORR, color = label, group = label)) + ggtitle ("CORR box plot for Image3") 
+ndai3 <- ggplot(non_zero_image3) + geom_boxplot(aes(x =  label,  y = NDAI, color = label, group = label)) + ggtitle ("NDAI box plot for Image3") 
+sd3 <- ggplot(non_zero_image3) + geom_boxplot(aes(x =  label,  y = SD, color = label, group = label)) + ggtitle ("SD box plot for Image3")
+af3 <- ggplot(non_zero_image3) + geom_boxplot(aes(x =  label,  y = AF, color = label, group = label)) + ggtitle ("AF box plot for Image3") 
+ggarrange(corr3, ndai3, sd3, af3, ncol = 2, nrow = 2)
+```
+
+
+
+
+2a
+```{r}
+t.image <- rbind(image1,image2,image3)
+split_cond <- function(image){
+  cloud <- image%>%
+    filter(label==1)
+  nocloud <- image%>%
+    filter(label==-1)
+  
+  id.c <- sample(seq_len(nrow(cloud)),size=nrow(cloud)*9/10)
+  train_id <- sample(id.c,size=length(id.c)*8/9)
+  train.c <- cloud[train_id,]
+  test.c <- cloud[-id.c,]
+  val.c <- cloud[c(-train_id,-id.c),]
+  
+  
+  id.nc <- sample(seq_len(nrow(nocloud)),size=nrow(nocloud)*9/10) 
+  tr.id.nc <- sample(id.nc,size=length(id.nc)*8/9)
+  train.nc <- nocloud[tr.id.nc,]
+  test.nc <- nocloud[-id.nc,]
+  val.nc <- nocloud[c(-tr.id.nc,-id.nc),]
+  
+  
+  
+  train <- rbind(train.c,train.nc)
+  test <- rbind(test.c, test.nc)
+  val <- rbind(val.c, val.nc)
+  return(list(train,test,val))
+  
+  
+}
+
+train_cond <- split_cond(t.image)[[1]]
+test_cond <- split_cond(t.image)[[2]]
+val_cond <- split_cond((t.image))[[3]]
+
+train_cond1 <- split_cond(image1)[[1]]
+test_cond1 <- split_cond(image1)[[2]]
+val_cond1 <- split_cond((image1))[[3]]
+
+train_cond2 <- split_cond(image2)[[1]]
+test_cond2 <- split_cond(image2)[[2]]
+val_cond2 <- split_cond((image2))[[3]]
+
+train_cond3 <- split_cond(image3)[[1]]
+test_cond3 <- split_cond(image3)[[2]]
+val_cond3 <- split_cond((image3))[[3]]
+```
+
+```{r}
+split_block <- function(image, n){
+
+  I.1 <- image %>%
+  filter(label==1 | label==-1)
+
+  x_cut <- c(seq(min(I.1$X), max(I.1$X), length(unique(I.1$X))/n ), max(I.1$X))
+  y_cut <-  c(seq(min(I.1$Y), max(I.1$Y), length(unique(I.1$Y))/n ), max(I.1$Y))
+  
+  k = 1
+  block <- list()
+  while (k <= n*n){
+    for (i in 1:n){
+      for (j in 1:n){
+          if (i != n & j != n){
+          block[[k]] <- I.1[(x_cut[i] <= I.1$X & I.1$X < x_cut[i+1]) & (y_cut[j] <= I.1$Y & I.1$Y < y_cut[j+1]),]
+        } else if(i!= n & j == n){
+           block[[k]] <- I.1[(x_cut[i] <= I.1$X & I.1$X < x_cut[i+1]) & (y_cut[j] <= I.1$Y & I.1$Y <= y_cut[j+1]),]
+        } else if(i == n & j != n){
+           block[[k]] <- I.1[(x_cut[i] <= I.1$X & I.1$X <= x_cut[i+1]) & (y_cut[j] <= I.1$Y & I.1$Y < y_cut[j+1]),]
+        } else{
+           block[[k]] <- I.1[(x_cut[i] <= I.1$X & I.1$X <= x_cut[i+1]) & (y_cut[j] <= I.1$Y & I.1$Y <= y_cut[j+1]),]
+        }
+        k = k+1
+        }
+      }
+  }
+block_id <- sample(1:(n*n), size = (n*n)-2)
+train_block_id <- sample(block_id, size=length(block_id)-2)
+train_block <- block[train_block_id]
+val_block <- block[c(-train_block_id,-block_id)]
+test_block <- block[-block_id]
+return(list(train_block, val_block, test_block))
+}
+
+
+
+train_block = split_block(t.image,5)[[1]]
+newdf = data_frame()
+for (df in train_block) {
+  newdf = rbind(newdf, df)
+}
+train_block = newdf
+
+
+val_block = split_block(t.image,5)[[2]]
+newdf = data_frame()
+for (df in val_block) {
+  newdf = rbind(newdf, df)
+}
+val_block = newdf
+
+
+test_block = split_block(t.image,5)[[3]]
+newdf = data_frame()
+for (df in test_block) {
+  newdf = rbind(newdf, df)
+}
+test_block = newdf
+
+
+
+train_block1 = split_block(image1,5)[[1]]
+newdf = data_frame()
+for (df in train_block1) {
+  newdf = rbind(newdf, df)
+}
+train_block1 = newdf
+
+
+val_block1 = split_block(image1,5)[[2]]
+newdf = data_frame()
+for (df in val_block1) {
+  newdf = rbind(newdf, df)
+}
+val_block1 = newdf
+
+
+test_block1 = split_block(image1,5)[[3]]
+newdf = data_frame()
+for (df in test_block1) {
+  newdf = rbind(newdf, df)
+}
+test_block1 = newdf
+
+train_block2 = split_block(image2,5)[[1]]
+newdf = data_frame()
+for (df in train_block2) {
+  newdf = rbind(newdf, df)
+}
+train_block2 = newdf
+
+
+val_block2 = split_block(image2,5)[[2]]
+newdf = data_frame()
+for (df in val_block2) {
+  newdf = rbind(newdf, df)
+}
+val_block2 = newdf
+
+
+test_block2 = split_block(image2,5)[[3]]
+newdf = data_frame()
+for (df in test_block2) {
+  newdf = rbind(newdf, df)
+}
+test_block2 = newdf
+
+
+train_block3 = split_block(image3,5)[[1]]
+newdf = data_frame()
+for (df in train_block3) {
+  newdf = rbind(newdf, df)
+}
+train_block3 = newdf
+
+
+val_block3 = split_block(image3,5)[[2]]
+newdf = data_frame()
+for (df in val_block3) {
+  newdf = rbind(newdf, df)
+}
+val_block3 = newdf
+
+
+test_block3 = split_block(image3,5)[[3]]
+newdf = data_frame()
+for (df in test_block3) {
+  newdf = rbind(newdf, df)
+}
+test_block3 = newdf
+```
+
+
+
+
+2b
+```{r }
+b <- rbind(test_cond,val_cond)
+y.hat <- -1
+
+mean(b$label == y.hat )
+mean(test_cond$label == y.hat)
+mean(val_cond$label == y.hat)
+
+    
+
+```
+
+
+
+2c
+```{r}
+dt <- train_cond[,c(-1,-2,-3)] #remove coordinate and label
+str(dt)
+
+
+prin_comp <- prcomp(dt, center = T, scale. = T)
+pr_var <- (prin_comp$sdev)^2
+prop_varex <- pr_var/sum(pr_var)
+prop_varex #the first component explains 65% variance, second 19%, the third 9.6%
+
+#the first three component covered about 93.6% variance
+#using PCA we have reduced 9 features to 3 without compromising on explained variance.
+
+
+
+library(factoextra)
+fviz_eig(prin_comp) #scree plot
+
+
+fviz_pca_var(prin_comp,
+             col.var = "contrib", # Color by contributions to the PC
+             gradient.cols = c("#00AFBB", "#E7B800", "#FC4E07"),
+             repel = TRUE     # Avoid text overlapping
+             )
+```
+
+2d
+```{r}
+CVgeneric <- function(classifier, features, labels, K, loss){
+  labels[labels == -1] <- 0
+  train = split_cond(cbind(labels,features))[[1]]
+  val = split_cond(cbind(labels,features))[[3]]
+  t.train = rbind(train, val)
+  id <- sample(1:len(t.train), size = len(t.train)*(K-1)/K)
+  cv_train = t.train[id]
+  cv_val = t.train[-id]
+
+  model <- train(labels ~ NDAI + CORR + AF, data = cv_train, method = classifier)
+  y_hat <- predict(model, cv_val[,-1])
+  y.pred = rep(0, length(log.pred))
+  y.pred[y_hat > 0.5] = 1
+  return(mean(y.pred != labels))
+}
+
+
+```
+
+
+# ```{r}
+# generic.cv(train_cond, train_cond$label, 
+# nTimes = 10, 
+# k = 10, 
+# seed = 2014, 
+# regression = FALSE, 
+# genericAlgo = lda , 
+# specificPredictFunction = NULL, 
+# metrics = c("none", "AUC", "precision", "F-score", "L1", "geometric mean", "geometric mean (precision)"))
+# ```
+```{r}
+train_block$label[train_block$label==-1] <- 0 #set cloud free label to 0
+test_block$label[test_block$label==-1] <- 0
+val_block$label[val_block$label==-1] <- 0
+
+t.train = rbind(train_block, val_block)
+
+modelList = list()
+folds <- createFolds(t.train$label, k = 10)
+foldsAccuracy<-list()
+for (j in 1:10){
+ 
+    train_set <- t.train[-unlist(folds[j]),]
+    val_set <- t.train[unlist(folds[j]),]
+    y_train_set <- train_set$label[-unlist(folds[j])]
+   # y_val_set <- val_set$label[unlist(folds[j])]
+   # currFormula <- as.formula(paste("log(SalePrice+1)", "~", paste(Xnames[1:i], collapse = "+"), sep = ""))
+    # model <-  qda(label ~ AF + CORR + NDAI, data = train_set)
+    # pred <- predict(model, val_set)
+    # foldsAccuracy[j] = mean(pred$class == y_val_set)
+    
+    qda.fit.1 <- lda(label ~ AF + CORR + NDAI, data = t.train)
+   qda.pred.1 <- predict(qda.fit.1, val_set)
+   foldsAccuracy[j] = mean(qda.pred.1$class == val_set$label)
+  }
+unlist(foldsAccuracy)
+
+modelList = list()
+folds <- createFolds(t.train$label, k = 10)
+foldsAccuracy<-list()
+for (j in 1:10){
+ 
+    train_set <- t.train[-unlist(folds[j]),]
+    val_set <- t.train[unlist(folds[j]),]
+    y_train_set <- train_set$label[-unlist(folds[j])]
+   # y_val_set <- val_set$label[unlist(folds[j])]
+   # currFormula <- as.formula(paste("log(SalePrice+1)", "~", paste(Xnames[1:i], collapse = "+"), sep = ""))
+    # model <-  qda(label ~ AF + CORR + NDAI, data = train_set)
+    # pred <- predict(model, val_set)
+    # foldsAccuracy[j] = mean(pred$class == y_val_set)
+    
+    qda.fit.1 <- qda(label ~ AF + CORR + NDAI, data = t.train)
+   qda.pred.1 <- predict(qda.fit.1, val_set)
+   foldsAccuracy[j] = mean(qda.pred.1$class == val_set$label)
+  }
+unlist(foldsAccuracy)
+
+
+modelList = list()
+folds <- createFolds(t.train$label, k = 10)
+foldsAccuracy<-list()
+for (j in 1:10){
+
+  train_set <- t.train[-unlist(folds[j]),]
+    val_set <- t.train[unlist(folds[j]),]
+    y_train_set <- train_set$label[-unlist(folds[j])]
+    y_val_set <- val_set$label[unlist(folds[j])]
+
+log.Mod = glm(label ~ AF + CORR + NDAI, data = train_set, family = binomial(link = "logit"))
+log.pred <- predict(log.Mod, val_set, type="response")
+
+optCutOff <- optimalCutoff(val_set$label, log.pred)[1]
+
+#check accuracy
+glm.pred = rep(0, length(log.pred))
+glm.pred[log.pred > optCutOff] = 1
+foldsAccuracy[j] = mean(glm.pred == val_set$label)
+  }
+unlist(foldsAccuracy)
+
+
+
+
+
+
+modelList = list()
+folds <- createFolds(t.train$label, k = 10)
+foldsAccuracy<-list()
+for (j in 1:10){
+
+  train_set <- t.train[-unlist(folds[j]),]
+    val_set <- t.train[unlist(folds[j]),]
+    y_train_set <- train_set$label[-unlist(folds[j])]
+    y_val_set <- val_set$label[unlist(folds[j])]
+    
+    knn.pred.1 <- knn(train_set, val_set, cl = train_set$label, k = 100, prob= TRUE)
+  foldsAccuracy[j] = mean(knn.pred.1 == val_set$label)
+    
+}
+
+unlist(foldsAccuracy)
+
+
+```
+
+###3. Model
+```{r a}
+library(InformationValue)
+train_cond$label[train_cond$label==-1] <- 0 #set cloud free label to 0
+test_cond$label[test_cond$label==-1] <- 0
+val_cond$label[val_cond$label==-1] <- 0
+
+
+train_block$label[train_block$label==-1] <- 0 #set cloud free label to 0
+test_block$label[test_block$label==-1] <- 0
+val_block$label[val_block$label==-1] <- 0
+
+
+#logistic method 1 fit
+log.Mod.1 = glm(label ~ AF + CORR + NDAI, data = train_cond, family = binomial(link = "logit"))
+log.pred.1 <- predict(log.Mod.1, test_cond, type="response")
+
+#logistic method 1 accuracy
+optCutOff.log1 <- optimalCutoff(test_cond$label, log.pred.1)[1]
+optCutOff.log1 
+glm.pred.1 = rep(0, length(log.pred.1))
+glm.pred.1[log.pred.1 > optCutOff.log1] = 1
+mean(glm.pred.1 == test_cond$label)
+
+
+
+#logistics method 2 fit
+log.Mod.2 = glm(label ~ AF + CORR + NDAI, data = train_block, family = binomial(link = "logit"))
+log.pred.2 <- predict(log.Mod.2, test_block, type="response")
+
+#cut off
+optCutOff.2 <- optimalCutoff(test_block$label, log.pred.2)[1]
+optCutOff.2 
+
+#logistics method 2 accuracy
+glm.pred.2= rep(0, length(log.pred.2))
+glm.pred.2[log.pred.2 > optCutOff.2] = 1
+mean(glm.pred.2 == test_block$label)
+
+
+
+
+###QDA
+library(MASS)
+qda.fit.1 <- qda(label ~ AF + CORR + NDAI, data = train_cond)
+qda.pred.1 <- predict(qda.fit.1, test_cond)
+mean(qda.pred.1$class == test_cond$label)#QDA accuracy for method 1
+
+
+
+qda.fit.2 <- qda(label ~ AF + CORR + NDAI, data = train_block)
+qda.pred.2 <- predict(qda.fit.2, test_block)
+mean(qda.pred.2$class == test_block$label)#QDA accuracy for method 2
+
+
+
+
+
+###LDA 
+lda.fit.1 = lda(label ~ AF + CORR + NDAI, data = train_cond)
+lda.pred.1 = predict(lda.fit.1,test_cond)
+mean(lda.pred.1$class == test_cond$label)#LDA accuracy for method 1
+
+
+
+lda.fit.2 = lda(label ~ AF + CORR + NDAI, data = train_block)
+lda.pred.2 = predict(lda.fit.2, test_block)
+mean(lda.pred.2$class == test_block$label)#LDA accuracy for method 2
+
+
+###KNN
+knn.pred.1 <- knn(train_cond, test_cond, cl = train_cond$label, k = 100, prob= TRUE)
+mean(knn.pred.1 == test_cond$label) #accuracy for method 1
+
+knn.pred.2 <- knn(train_block, test_block, cl = train_block$label, k = 100, prob= TRUE)
+mean(knn.pred.2 == test_block$label) #accuracy for method 2
+```
+
+```{r}
+#logistic method1
+optCutOff.log1
+
+optCutOff.2
+
+pred1 <- prediction(log.pred.1, test_cond$label) 
+perf1 <- performance(pred1,"tpr","fpr")
+
+
+pred2 <- prediction(log.pred.2, test_block$label) 
+perf2 <- performance(pred2,"tpr","fpr")
+
+
+par(mfrow=c(1,2))
+plot(perf1, colorize=TRUE,main="ROC for Logistic on Method1")
+abline(a=0, b= 1)
+abline(v=optCutOff.log1,col='purple')
+text(x=optCutOff.log1, adj=1,labels = "cutoff 0.3697217")
+
+
+plot(perf2, colorize=TRUE,main="ROC for Logistic on Method2")
+abline(a=0, b= 1)
+abline(v=optCutOff.2,col='purple')
+text(x=optCutOff.2, adj=1,labels = "cutoff 0.3976241")
+
+
+
+
+###Optimal Cut Off function
+opt.cut = function(perf, pred){
+    cut.ind = mapply(FUN=function(x, y, p){
+        d = (x - 0)^2 + (y-1)^2
+        ind = which(d == min(d))
+        c(sensitivity = y[[ind]], specificity = 1-x[[ind]], 
+            cutoff = p[[ind]])
+    }, perf@x.values, perf@y.values, pred@cutoffs)
+
+}
+
+
+```
+
+```{r}
+#ROC for LDA method 1
+pred3 <- prediction(lda.pred.1$posterior[,2], test_cond$label) 
+perf3 <- performance(pred3,"tpr","fpr")
+print(opt.cut(perf3, pred3))#cut off
+
+
+#ROC for LDA method 2
+pred4 <- prediction(lda.pred.2$posterior[,2], test_block$label) 
+perf4 <- performance(pred4,"tpr","fpr")
+print(opt.cut(perf4, pred4))#cut off
+
+
+par(mfrow=c(1,2))
+plot(perf3, colorize=TRUE, main="ROC for LDA on Method1")
+abline(a=0, b= 1)
+abline(v=0.3562186,col="purple")
+text(0.3562186,y=0,pos = 4,labels="cutoff 0.3562186")
+
+
+plot(perf4, colorize=TRUE,main="ROC for LDA on Method2")
+abline(a=0, b= 1)
+abline(v=0.3551124,col="purple")
+text(0.3551124,y=0,pos = 4,labels="cutoff 0.3551124")
+
+```
+
+
+
+```{r 3b}
+#ROC for QDA method 1
+pred5 <- prediction(qda.pred.1$posterior[,2], test_cond$label) 
+perf5 <- performance(pred5,"tpr","fpr")
+
+
+
+print(opt.cut(perf5, pred5))#cut off
+
+
+
+#ROC for QDA method 2
+pred6 <- prediction(qda.pred.2$posterior[,2], test_block$label) 
+perf6 <- performance(pred6,"tpr","fpr")
+
+print(opt.cut(perf6, pred6))#cut off
+
+par(mfrow=c(1,2))
+plot(perf5, colorize=TRUE,main="ROC for QDA on Method1")
+abline(a=0, b= 1)
+abline(v=0.2407924,col="purple")
+text(0.2407924,adj = 1,labels = "cutoff 0.2407924")
+
+plot(perf6, colorize=TRUE,main="ROC for QDA on Method2")
+abline(a=0, b= 1)
+abline(v=0.3588710,col="purple")
+text(0.3588710,adj =1,labels = "cutoff 0.3588710")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#ROC for KNN method 1
+prob1 <- attr(knn.pred.1, "prob")
+pred7 <- prediction(prob1, test_cond$label) 
+perf7 <- performance(pred7,"tpr","fpr")
+
+
+print(opt.cut(perf7, pred7))#cut off
+
+
+
+
+prob2 <- attr(knn.pred.2, "prob")
+pred8 <- prediction(prob2, test_block$label) 
+perf8 <- performance(pred8,"tpr","fpr")
+
+print(opt.cut(perf8, pred8))#cut off
+
+par(mfrow=c(1,2))
+plot(perf7, colorize=TRUE,main="ROC for KNN on Method1")
+abline(a=0, b= 1)
+abline(v=1.00000000,col="purple")
+text(1.00000000, pos = 2, labels = "cutoff 1.00")
+
+plot(perf8, colorize=TRUE,main="ROC for KNN on Method2")
+abline(a=0, b= 1)
+abline(v=0.9900990,col="purple")
+text(0.990099, pos = 2, labels = "cutoff 0.99")
+```
+
+
+
+
+
+4. a
+```{r}
+library("dplyr")
+library("ggpubr")
+
+ggdensity(t.image$label, 
+          main = "Density plot of label",
+          xlab = "label")
+
+summary(log.Mod.1)
+log.Mod.1$iter
+log.Mod.1$coefficients
+# library(caret)
+# x <- train_cond[,4:11]
+# y <- train_cond[,3]
+# scales <- list(x=list(relation="free"), y=list(relation="free"))
+# featurePlot(x=x, y=y, plot="density", scales=scales)
+```
+
+
+4b
+```{r}
+# method 1 split
+mean(glm.pred.1 != test_cond$label)
+misclass_image1 = test_cond[glm.pred.1 != test_cond$label,]
+ggplot(misclass_image1) + geom_point(aes(x =  X, y = Y, color = label)) + ggtitle ("Misclassification for the First Split") 
+
+# method 2 split
+mean(glm.pred.2 != test_block$label)
+misclass_image2= test_block[glm.pred.2 != test_block$label,]
+ggplot(misclass_image2) + geom_point(aes(x =  X, y = Y, color = label)) + ggtitle ("Misclassification for the Second Split")
+
+
+
+train_block3$label[train_block3$label==-1] <- 0 #set cloud free label to 0
+test_block3$label[test_block3$label==-1] <- 0
+val_block3$label[val_block3$label==-1] <- 0
+
+
+#logistic method 1 fit image1
+log.Mod.2 = glm(label ~ AF + CORR + NDAI, data = train_block3, family = binomial(link = "logit"))
+log.pred.2 <- predict(log.Mod.2, test_block3, type="response")
+
+#logistic method 1 accuracy image1
+optCutOff.log2 <- optimalCutoff(test_block3$label, log.pred.2)[1]
+optCutOff.log2 
+glm.pred.2 = rep(0, length(log.pred.2))
+glm.pred.2[log.pred.2 > optCutOff.log2] = 1
+
+mean(glm.pred.2 != test_block3$label)
+misclass_image2= test_block3[glm.pred.2 != test_block3$label,]
+ggplot(misclass_image2) + geom_point(aes(x =  X, y = Y, color = label)) + ggtitle ("Misclassification for the Second Split for Image3")
+```
+
+4c
+```{r}
+library(randomForest)
+train_cond$label <- as.factor(train_cond$label)
+val_cond$label <- as.factor(val_cond$label)
+
+model1 <- randomForest(label ~ CORR+NDAI+AF, data = train_cond,ntree=500, mtry=2, importance = TRUE)
+model1
+
+
+model2 <- randomForest(label ~ CORR+NDAI+AF, data = train_cond,ntree=1000 , mtry=2, importance = TRUE)
+model2
+
+
+
+predTrain <- predict(model1, train_cond, type = "class")
+table(predTrain)
+
+predValid <- predict(model1, val_cond, type = "class")
+table(predValid)
+
+
+
+# Checking classification accuracy
+mean(predValid == val_cond$label)
+```
+
+
+
+
+
