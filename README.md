@@ -1,1 +1,11 @@
 # STAT-154-Project-2-Cloud-Data
+
+The purpose of the paper is to detect the cloud distribution in the polar regions based on radiance recorded automatically by the multiangle Imaging SpectroRadiometer (MISR) sensor abroad the NASA satellite Terra. We attempt to build a classification model to distinguish the presence of cloud from the absence of clouds in the images using the available signals/features.
+
+First of all, we imported the data and name the data sets with image1, image2 and images 3. To roughly understand the data, we gave the scatter plots of three classes separately. Then we wanted to go deep into the relationships among the features so we drew the correlation plots of pairs of features. We noticed some strong relationships between some pairs and gave more details on these pairwise relationship.
+
+We created two for loops for two split methods, named as split_cond and split_block.  And then checked the test accuracies based on two different methods. Following by that, we'd like to choose the best related features as our prediction variables that can be best related to the label response. A PCA analysis was runned, the codes include a screen plot showing the distribution of the first several variables and then the first two component dimension plots is generated with ggplot function displays the contribution of each variables from the dataset showing the loading vectors.
+
+Next part includes the model classification selection testing. Four classification was tested Logistics, LDA, QDA and the code includes the test accuracy based on two splitting method of different classification methods. There are ROC plots generated with different method and a function opt.cut was written to generate the optimal cutoff value and the value is added on the roc plot mannualy.
+
+The model diagnostics following the next where we checked the density of the data and then misclassification plots is generated along with that. By combining both, we decide to move with random forest algrithm to see if a better classification method. Two different model is fitted with different ntree value and mtry value as turning paramater. The test accuracy is followed by that.
